@@ -219,7 +219,7 @@ Try the self-contained, dependency-free HTML/JS examples in the repository:
 | 2D Occlusion & Erase Masks | 3D Mesh Shading & Occlusion | Bring-Your-Own Sine Wave Hatch |
 |:---:|:---:|:---:|
 | <img src="docs/images/hello-world-2d.png" width="240" alt="2D Hello World Example" /> | <img src="docs/images/hello-world-3d.png" width="240" alt="3D Hello World Example" /> | <img src="docs/images/hello-world-custom-hatch.png" width="240" alt="Custom Sine Wave Hatch Example" /> |
-| [**`hello-world-2d.html`**](examples/hello-world-2d.html)<br>Millimetric 2D coordinates, painter's order, cross-hatching, and negative erase cutout masks | [**`hello-world-3d.html`**](examples/hello-world-3d.html)<br>3D camera perspective, geometric cube + sphere, and directional light-modulated engraving | [**`hello-world-custom-hatch.html`**](examples/hello-world-custom-hatch.html)<br>Procedural sine wave hatching with lighting-modulated density and 3D depth occlusion |
+| [**`hello-world-2d.html`**](https://tenebrisvia.github.io/PlotterStudio/dist/examples/hello-world-2d.html)<br>Millimetric 2D coordinates, painter's order, cross-hatching, and negative erase cutout masks | [**`hello-world-3d.html`**](https://tenebrisvia.github.io/PlotterStudio/dist/examples/hello-world-3d.html)<br>3D camera perspective, geometric cube + sphere, and directional light-modulated engraving | [**`hello-world-custom-hatch.html`**](https://tenebrisvia.github.io/PlotterStudio/dist/examples/hello-world-custom-hatch.html)<br>Procedural sine wave hatching with lighting-modulated density and 3D depth occlusion |
 
 Launch the local development server:
 ```bash
