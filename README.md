@@ -26,8 +26,8 @@ Inspired by Gábor Ugray's technique ([*Fast line hiding with a WebGL shader for
 - **Procedural Hatching**:
   - Parallel engraving & cross-hatching.
   - **Meander / Serpentine Hatching**: Post-occlusion bridging of alternating parallel hatch lines within a configurable distance threshold (`hatchJoinDistanceMm`), transforming sets of individual hatch strokes into continuous serpentine paths to minimize pen lifts.
-  - Light-directed shading: modulates line density based on surface normals and directional key lights.
-  - Automatic global grid alignment for adjacent triangle meshes so lines meet tip-to-tip.
+  - Light-directed shading: modulates line density based on smooth interpolated vertex normals and directional key lights, with configurable soft cutoffs (`softness`) and organic noise/spatial gradients (`randomness`) for gradual tonal transitions across both curved and planar faces.
+  - Automatic global grid alignment for adjacent polygons and triangle meshes so lines meet tip-to-tip.
 - **Plotter Path Optimization**:
   - Sub-segment micro-stitching across pixel steps.
   - Polyline chaining to minimize pen-up operations.
@@ -40,7 +40,7 @@ Inspired by Gábor Ugray's technique ([*Fast line hiding with a WebGL shader for
 - **Interactive Studio Playground**:
   - Live split-view comparing the WebGPU G-Buffer shading with real-time vector SVG rendering.
   - Viewport navigation toolbar with **Fit to View**, **Fill**, **1:1 (Actual Size)**, **200%**, and custom zoom levels with synchronized split-panel scrolling.
-  - Real-time camera controls (orbit, pan, zoom), lighting, edge thresholds, paper size presets, hatch meander chaining, and drag-and-drop `.glb` model loading.
+  - Real-time camera controls (orbit, pan, zoom), lighting, hatch fade/randomness, edge thresholds, paper size presets, hatch meander chaining, and drag-and-drop `.glb` model loading.
 
 ---
 
@@ -142,6 +142,8 @@ scene.addBox({
       minSpacingMm: 0.5,
       maxSpacingMm: 2.0,
       highlightCutoff: 0.85,
+      softness: 0.22,
+      randomness: 0.28,
     },
   }),
 });

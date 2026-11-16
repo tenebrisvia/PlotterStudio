@@ -531,6 +531,8 @@ export class PlotterScene3D {
         { vA: number; vB: number; faces: CompiledFace[] }
       >();
 
+      const vertexToFaces = new Map<number, CompiledFace[]>();
+
       for (const faceDef of mesh.faces) {
         const idxs = faceDef.indices;
         if (idxs.length < 3) continue;
@@ -565,8 +567,14 @@ export class PlotterScene3D {
         });
 
         if (allInFront) {
-          for (const pv of projectedVerts) {
-            screenPoly.push({ xPx: pv.xPx, yPx: pv.yPx, z: pv.z });
+          for (let k = 0; k < projectedVerts.length; k++) {
+            const pv = projectedVerts[k];
+            screenPoly.push({
+              xPx: pv.xPx,
+              yPx: pv.yPx,
+              z: pv.z,
+              worldPos: worldVerts[idxs[k]],
+            });
           }
         }
 
@@ -601,6 +609,14 @@ export class PlotterScene3D {
           fill: faceDef.fill,
         };
         compiledFaces.push(compiledFace);
+        for (const vi of idxs) {
+          let list = vertexToFaces.get(vi);
+          if (!list) {
+            list = [];
+            vertexToFaces.set(vi, list);
+          }
+          list.push(compiledFace);
+        }
 
         // Record polygon boundary edges (skipping internal fan diagonals!)
         for (let e = 0; e < idxs.length; e++) {
@@ -680,19 +696,44 @@ export class PlotterScene3D {
       }
 
       // 2. Emit surface hatch fills (replacing solid fills on visible faces!)
+      // Smooth vertex normals across faces meeting below ~38 deg so curved meshes
+      // (torus, spheres, organic models) shade smoothly instead of popping facet-by-facet.
+      const smoothCos = Math.cos((38 * Math.PI) / 180);
+
       for (const face of compiledFaces) {
         if ((!face.frontFacing && !mesh.doubleSided) || face.screenPoly.length < 3) continue;
         const fillStyle = face.fill === null ? undefined : (face.fill ?? mesh.fill);
         if (!fillStyle) continue;
 
-        const effectiveNormal: Vec3 =
-          !face.frontFacing && mesh.doubleSided
-            ? [-face.worldNormal[0], -face.worldNormal[1], -face.worldNormal[2]]
-            : face.worldNormal;
+        const flipNormal = !face.frontFacing && mesh.doubleSided;
+        const effectiveNormal: Vec3 = flipNormal
+          ? [-face.worldNormal[0], -face.worldNormal[1], -face.worldNormal[2]]
+          : face.worldNormal;
+
+        const smoothedPoly: ScreenVertex[] = face.screenPoly.map((sv, idx) => {
+          const vi = face.indices[idx];
+          const adjFaces = vertexToFaces.get(vi);
+          if (!adjFaces || adjFaces.length <= 1) {
+            return { ...sv, worldNormal: effectiveNormal };
+          }
+          let nx = face.worldNormal[0];
+          let ny = face.worldNormal[1];
+          let nz = face.worldNormal[2];
+          for (const nf of adjFaces) {
+            if (nf === face) continue;
+            if (dot3(face.worldNormal, nf.worldNormal) >= smoothCos) {
+              nx += nf.worldNormal[0];
+              ny += nf.worldNormal[1];
+              nz += nf.worldNormal[2];
+            }
+          }
+          const smoothN = normalize3(flipNormal ? [-nx, -ny, -nz] : [nx, ny, nz]);
+          return { ...sv, worldNormal: smoothN };
+        });
 
         const hatchLayerIdx = getLayerIdx(fillStyle.layer ?? "hatch");
         const hatchSegs = generatePolygonHatchSegments(
-          face.screenPoly,
+          smoothedPoly,
           fillStyle,
           pxPerMm,
           effectiveNormal
@@ -1192,6 +1233,11 @@ function transformHatchFill(
               highlightCutoff: overrides.highlightCutoff ?? prevShade?.highlightCutoff ?? 0.78,
               crossHatchThreshold:
                 overrides.crossHatchThreshold ?? prevShade?.crossHatchThreshold ?? 0.48,
+              softness:
+                overrides.hatchRandomness !== undefined
+                  ? overrides.hatchRandomness * 0.45
+                  : prevShade?.softness,
+              randomness: overrides.hatchRandomness ?? prevShade?.randomness,
             }
           : undefined,
     };
@@ -1211,6 +1257,11 @@ function transformHatchFill(
             overrides.highlightCutoff ?? fill.shadeByLight.highlightCutoff,
           crossHatchThreshold:
             overrides.crossHatchThreshold ?? fill.shadeByLight.crossHatchThreshold,
+          softness:
+            overrides.hatchRandomness !== undefined
+              ? overrides.hatchRandomness * 0.45
+              : fill.shadeByLight.softness,
+          randomness: overrides.hatchRandomness ?? fill.shadeByLight.randomness,
         }
       : undefined,
   };

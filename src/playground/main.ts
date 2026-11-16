@@ -51,6 +51,7 @@ interface PlaygroundState {
   hatchAngleOffsetDeg: number;
   highlightCutoff: number;
   crossHatchThreshold: number;
+  hatchRandomness: number;
   lightAzimuthDeg: number;
   lightElevationDeg: number;
   penWidthMm: number;
@@ -87,6 +88,7 @@ const state: PlaygroundState = {
   hatchAngleOffsetDeg: 0,
   highlightCutoff: 0.78,
   crossHatchThreshold: 0.48,
+  hatchRandomness: 0.35,
   lightAzimuthDeg: 35,
   lightElevationDeg: 48,
   penWidthMm: 0.2,
@@ -142,6 +144,8 @@ const elHighlightCutoff = $<HTMLInputElement>("#highlight-cutoff");
 const elHighlightCutoffVal = $<HTMLOutputElement>("#highlight-cutoff-val");
 const elCrossThreshold = $<HTMLInputElement>("#cross-threshold");
 const elCrossThresholdVal = $<HTMLOutputElement>("#cross-threshold-val");
+const elHatchRandomness = $<HTMLInputElement>("#hatch-randomness");
+const elHatchRandomnessVal = $<HTMLOutputElement>("#hatch-randomness-val");
 const elLightAzimuth = $<HTMLInputElement>("#light-azimuth");
 const elLightAzimuthVal = $<HTMLOutputElement>("#light-azimuth-val");
 const elLightElevation = $<HTMLInputElement>("#light-elevation");
@@ -468,6 +472,7 @@ async function buildActiveScene(paper: PaperConfig) {
     hatchAngleOffsetDeg: state.hatchAngleOffsetDeg,
     highlightCutoff: state.highlightCutoff,
     crossHatchThreshold: state.crossHatchThreshold,
+    hatchRandomness: state.hatchRandomness,
     lightDirection: computeLightDirectionVec3(),
     creaseAngleDeg: state.creaseAngleDeg,
     drawSilhouettes: state.drawSilhouettes,
@@ -730,6 +735,12 @@ function wireEvents() {
   elCrossThreshold.addEventListener("input", () => {
     state.crossHatchThreshold = Number(elCrossThreshold.value);
     elCrossThresholdVal.textContent = state.crossHatchThreshold.toFixed(2);
+    void renderPlot();
+  });
+
+  elHatchRandomness.addEventListener("input", () => {
+    state.hatchRandomness = Number(elHatchRandomness.value);
+    elHatchRandomnessVal.textContent = state.hatchRandomness.toFixed(2);
     void renderPlot();
   });
 

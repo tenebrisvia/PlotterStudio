@@ -30,6 +30,8 @@ export interface ScreenVertex {
   readonly xPx: number;
   readonly yPx: number;
   readonly z: number; // positive linear camera-space depth
+  readonly worldPos?: Vec3;
+  readonly worldNormal?: Vec3;
 }
 
 export interface GeneratedHatchSegment {
@@ -57,6 +59,18 @@ export interface ParallelHatchStyle {
     readonly highlightCutoff?: number;
     /** Only apply secondary cross-hatching on faces darker than this threshold [0..1] (default: 0.48) */
     readonly crossHatchThreshold?: number;
+    /**
+     * Soft transition band [0..1] around highlightCutoff & crossHatchThreshold (default: 0.22).
+     * Gradually thins hatch lines and breaks strokes into organic marks instead of
+     * an abrupt on/off cutoff.
+     */
+    readonly softness?: number;
+    /**
+     * Organic randomness / spatial tone variation [0..1] (default: 0.28).
+     * Introduces coherent noise and subtle spatial shading gradient so even flat planar
+     * faces exhibit gradual hatching density transitions.
+     */
+    readonly randomness?: number;
   };
   /** Inset hatch lines from polygon/face boundary (mm) */
   readonly insetMm?: number;
@@ -224,6 +238,7 @@ export interface SceneStyleOverrides {
   readonly hatchAngleOffsetDeg?: number;
   readonly highlightCutoff?: number;
   readonly crossHatchThreshold?: number;
+  readonly hatchRandomness?: number;
   readonly lightDirection?: Vec3;
   readonly creaseAngleDeg?: number;
   readonly drawSilhouettes?: boolean;

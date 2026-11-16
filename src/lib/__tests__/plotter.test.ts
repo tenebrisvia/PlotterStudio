@@ -534,4 +534,53 @@ describe("WebGPUPlotter (3D & 2D Hidden Line Removal + Hatching)", () => {
     const svg = res.toSVG();
     expect(svg).toContain("<svg");
   });
+
+  it("supports gradual randomized hatch falloff and intra-face gradients", () => {
+    const quad: ScreenVertex[] = [
+      { xPx: 100, yPx: 100, z: 10, worldPos: [-2, -5, 0], worldNormal: [0, 0.65, 0.76] },
+      { xPx: 300, yPx: 100, z: 10, worldPos: [2, -5, 0], worldNormal: [0, 0.65, 0.76] },
+      { xPx: 300, yPx: 500, z: 10, worldPos: [2, 5, 0], worldNormal: [0, 0.65, 0.76] },
+      { xPx: 100, yPx: 500, z: 10, worldPos: [-2, 5, 0], worldNormal: [0, 0.65, 0.76] },
+    ];
+
+    // Binary cutoff mode: ndotl ~ 0.825 > 0.78 -> completely blank
+    const binarySegs = generatePolygonHatchSegments(
+      quad,
+      HatchFill.parallel({
+        spacingMm: 1.0,
+        angleDeg: 45,
+        shadeByLight: {
+          direction: [0, 1, 0],
+          minSpacingMm: 0.6,
+          maxSpacingMm: 1.8,
+          highlightCutoff: 0.78,
+          softness: 0,
+          randomness: 0,
+        },
+      }),
+      6.0,
+      [0, 0.65, 0.76]
+    );
+    expect(binarySegs.length).toBe(0);
+
+    // Gradual + randomized mode: sparse broken strokes creep into the lower/darker portion
+    const gradualSegs = generatePolygonHatchSegments(
+      quad,
+      HatchFill.parallel({
+        spacingMm: 1.0,
+        angleDeg: 45,
+        shadeByLight: {
+          direction: [0, 1, 0],
+          minSpacingMm: 0.6,
+          maxSpacingMm: 1.8,
+          highlightCutoff: 0.78,
+          softness: 0.25,
+          randomness: 0.35,
+        },
+      }),
+      6.0,
+      [0, 0.65, 0.76]
+    );
+    expect(gradualSegs.length).toBeGreaterThan(0);
+  });
 });

@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Plotter Studio — WebGPU Hidden Line Removal &amp; Hatching</title>
-    <script type="module" crossorigin src="./assets/main-B4Lf4N-q.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/plotter-C06NiG2f.js">
+    <script type="module" crossorigin src="./assets/main-CR1uka_x.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/plotter-DHLbPNcT.js">
     <link rel="stylesheet" crossorigin href="./assets/main-CyU0Vhz8.css">
   </head>
   <body>
@@ -154,6 +154,11 @@
               <span>Cross-Shadow</span>
               <input type="range" id="cross-threshold" min="0.10" max="0.90" step="0.02" value="0.48" />
               <output id="cross-threshold-val">0.48</output>
+            </div>
+            <div class="slider-row" title="Softens hard light cutoffs with organic randomness and spatial gradients so hatching fades gradually across faces">
+              <span>Hatch Fade</span>
+              <input type="range" id="hatch-randomness" min="0.0" max="1.0" step="0.05" value="0.35" />
+              <output id="hatch-randomness-val">0.35</output>
             </div>
             <div class="slider-row">
               <span>Light Azim</span>
