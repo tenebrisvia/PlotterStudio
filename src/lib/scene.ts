@@ -806,16 +806,6 @@ export interface AddCircle2DOptions extends Omit<AddPolygon2DOptions, "points"> 
   readonly segments?: number;
 }
 
-export interface AddRibbonBlade2DOptions {
-  readonly spinePoints: Vec2[];
-  readonly baseWidthMm: number;
-  readonly tipWidthMm?: number;
-  readonly zIndex?: number;
-  readonly strokeLayer?: string;
-  readonly drawCenterVein?: boolean;
-  readonly fill?: HatchFillStyle;
-}
-
 export interface AddPolyline2DOptions {
   readonly points: Vec2[];
   readonly zIndex?: number;
@@ -950,66 +940,6 @@ export class PlotterScene2D {
     }
 
     return this.addPolygon({ ...opts, points });
-  }
-
-  /**
-   * Adds an organic 2D tapered blade / ribbon (such as Gábor Ugray's Generative Grass blades)
-   * that blocks shapes behind it and draws its outline + optional center vein or hatch.
-   */
-  addRibbonBlade(opts: AddRibbonBlade2DOptions): number {
-    const spine =
-      opts.spinePoints.length >= 3
-        ? sampleCatmullRom2D(opts.spinePoints, 8, false)
-        : opts.spinePoints;
-    if (spine.length < 2) return -1;
-
-    const zIndex = opts.zIndex ?? this.autoZCounter++;
-    const tipWidth = opts.tipWidthMm ?? 0.0;
-    const leftPts: Vec2[] = [];
-    const rightPts: Vec2[] = [];
-
-    for (let i = 0; i < spine.length; i++) {
-      const t = i / (spine.length - 1);
-      // Smooth taper curve from base to tip
-      const halfW = 0.5 * (opts.baseWidthMm * Math.pow(1 - t, 0.75) + tipWidth * t);
-      const prev = spine[Math.max(0, i - 1)];
-      const next = spine[Math.min(spine.length - 1, i + 1)];
-      const dx = next[0] - prev[0];
-      const dy = next[1] - prev[1];
-      const len = Math.hypot(dx, dy) || 1;
-      const nx = -dy / len;
-      const ny = dx / len;
-
-      leftPts.push([spine[i][0] + nx * halfW, spine[i][1] + ny * halfW]);
-      rightPts.push([spine[i][0] - nx * halfW, spine[i][1] - ny * halfW]);
-    }
-
-    const polygonPoints: Vec2[] = [...leftPts];
-    for (let i = rightPts.length - 1; i >= 0; i--) {
-      if (i === rightPts.length - 1 && tipWidth <= 0.05) continue;
-      polygonPoints.push(rightPts[i]);
-    }
-
-    const objId = this.addPolygon({
-      points: polygonPoints,
-      zIndex,
-      mode: "normal",
-      stroke: {
-        layer: opts.strokeLayer ?? "default",
-      },
-      fill: opts.fill,
-    });
-
-    if (opts.drawCenterVein && spine.length >= 3) {
-      const veinPts = spine.slice(0, Math.max(2, Math.floor(spine.length * 0.82)));
-      this.addPolyline({
-        points: veinPts,
-        zIndex: zIndex + 0.05,
-        layer: opts.strokeLayer ?? "default",
-      });
-    }
-
-    return objId;
   }
 
   addPolyline(opts: AddPolyline2DOptions): number {

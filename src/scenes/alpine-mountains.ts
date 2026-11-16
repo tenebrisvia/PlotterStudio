@@ -603,5 +603,3 @@ export function buildAlpineMountainsScene2D(params: AlpineMountainsSceneParams =
   return scene;
 }
 
-export const buildLayeredGrassScene2D = buildAlpineMountainsScene2D;
-export const buildMountainRangeScene2D = buildAlpineMountainsScene2D;

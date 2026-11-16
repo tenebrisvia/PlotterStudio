@@ -16,7 +16,6 @@ export {
   type AddPolyline2DOptions,
   type AddPolyline3DOptions,
   type AddRect2DOptions,
-  type AddRibbonBlade2DOptions,
   type AddSphere3DOptions,
   type AnyPlotterScene,
   type MeshFaceInput,
