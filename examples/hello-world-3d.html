@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plotter Studio — 3D Hello World</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f7f6f3;
+        color: #222;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #666;
+        font-size: 14px;
+      }
+      #plot-container {
+        width: 100%;
+        max-width: 440px;
+        background: #fff;
+        border-radius: 4px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+      }
+      #plot-container svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .actions {
+        margin-top: 16px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      button {
+        background: #111;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #333;
+      }
+      .nav-links {
+        margin-top: 20px;
+        font-size: 13px;
+        color: #888;
+      }
+      .nav-links a {
+        color: #0969da;
+        text-decoration: none;
+        margin: 0 6px;
+      }
+      .nav-links a:hover {
+        text-decoration: underline;
+      }
+      #status {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>3D Hello World</h1>
+    <p>GPU hidden-line removal for 3D meshes with light-modulated hatching.</p>
+
+    <div id="plot-container"></div>
+
+    <div class="actions">
+      <button id="download-btn">Download SVG</button>
+      <span id="status">Rendering...</span>
+    </div>
+
+    <div class="nav-links">
+      <a href="./hello-world-2d.html">2D Example</a>
+      <span>·</span>
+      <a href="./hello-world-custom-hatch.html">Custom Hatch</a>
+      <span>·</span>
+      <a href="../index.html">Studio Playground</a>
+    </div>
+
+    <script type="module">
+      import { createPlotter, PaperSize, HatchFill } from "../src/lib/index.ts";
+
+      const container = document.getElementById("plot-container");
+      const downloadBtn = document.getElementById("download-btn");
+      const statusEl = document.getElementById("status");
+
+      let currentSvg = "";
+
+      async function run() {
+        // 1. Initialize plotter for A4 paper
+        const plotter = await createPlotter({
+          paper: PaperSize.A4_PORTRAIT,
+          penWidthMm: 0.22,
+        });
+
+        // 2. Setup 3D camera perspective
+        const scene = plotter.createScene3D({
+          position: [12, 10, 15],
+          target: [0, 0, 0],
+          fovDeg: 38,
+        });
+
+        scene.registerLayer({ id: "outlines", color: "#111111", strokeWidthMm: 0.28 });
+        scene.registerLayer({ id: "hatch-blue", color: "#1e40af", strokeWidthMm: 0.18 });
+        scene.registerLayer({ id: "hatch-orange", color: "#c2410c", strokeWidthMm: 0.18 });
+
+        const lightDirection = [0.7, 1.0, 0.5];
+
+        // Central cube with directional light-modulated engraving hatch
+        scene.addBox({
+          size: [4.5, 4.5, 4.5],
+          position: [0, 0, 0],
+          stroke: { layer: "outlines", outlines: true, silhouettes: true },
+          fill: HatchFill.parallel({
+            layer: "hatch-blue",
+            angleDeg: 45,
+            spacingMm: 1.0,
+            shadeByLight: {
+              direction: lightDirection,
+              minSpacingMm: 0.5,
+              maxSpacingMm: 2.2,
+              highlightCutoff: 0.85,
+            },
+          }),
+        });
+
+        // Sphere positioned behind and above the cube
+        scene.addSphere({
+          radius: 2.5,
+          position: [-2.0, 3.2, -2.5],
+          latSegments: 16,
+          lonSegments: 24,
+          stroke: { layer: "outlines", outlines: true, silhouettes: true },
+          fill: HatchFill.crossHatch({
+            layer: "hatch-orange",
+            angleDeg: 30,
+            spacingMm: 0.85,
+            shadeByLight: {
+              direction: lightDirection,
+              minSpacingMm: 0.45,
+              maxSpacingMm: 1.8,
+              highlightCutoff: 0.75,
+            },
+          }),
+        });
+
+        // 3. Compute 3D hidden line removal on the GPU & optimize pen travel
+        const result = await plotter.plot(scene, { optimizeTravel: true });
+
+        // 4. Render output SVG directly to the page
+        currentSvg = result.toSVG({ includePaperBorder: true });
+        container.innerHTML = currentSvg;
+        statusEl.textContent = `${result.stats.totalTimeMs.toFixed(1)} ms · ${result.stats.finalPolylineCount} paths · -${result.stats.travelSavingsPercent.toFixed(1)}% travel`;
+      }
+
+      downloadBtn.addEventListener("click", () => {
+        if (!currentSvg) return;
+        const blob = new Blob([currentSvg], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "hello-world-3d.svg";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      run().catch((err) => {
+        statusEl.textContent = `Error: ${err.message}`;
+        console.error(err);
+      });
+    </script>
+  </body>
+</html>

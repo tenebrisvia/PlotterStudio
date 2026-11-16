@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plotter Studio — Custom Sine Wave Hatching</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f7f6f3;
+        color: #222;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #666;
+        font-size: 14px;
+        text-align: center;
+        max-width: 520px;
+      }
+      p code {
+        background: #e7e5e0;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-size: 13px;
+      }
+      #plot-container {
+        width: 100%;
+        max-width: 440px;
+        background: #fff;
+        border-radius: 4px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+      }
+      #plot-container svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .actions {
+        margin-top: 16px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      button {
+        background: #111;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #333;
+      }
+      .nav-links {
+        margin-top: 20px;
+        font-size: 13px;
+        color: #888;
+      }
+      .nav-links a {
+        color: #0969da;
+        text-decoration: none;
+        margin: 0 6px;
+      }
+      .nav-links a:hover {
+        text-decoration: underline;
+      }
+      #status {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Custom Sine Wave Hatching</h1>
+    <p>Bring your own procedural hatching routine using <code>HatchFill.custom()</code> with lighting-modulated shadows, highlights, and WebGPU 3D occlusion.</p>
+
+    <div id="plot-container"></div>
+
+    <div class="actions">
+      <button id="download-btn">Download SVG</button>
+      <span id="status">Rendering...</span>
+    </div>
+
+    <div class="nav-links">
+      <a href="./hello-world-2d.html">2D Example</a>
+      <span>·</span>
+      <a href="./hello-world-3d.html">3D Example</a>
+      <span>·</span>
+      <a href="../index.html">Studio Playground</a>
+    </div>
+
+    <script type="module">
+      import {
+        createPlotter,
+        PaperSize,
+        HatchFill,
+        getPolygonScanlineChords,
+      } from "../src/lib/index.ts";
+
+      const container = document.getElementById("plot-container");
+      const downloadBtn = document.getElementById("download-btn");
+      const statusEl = document.getElementById("status");
+
+      let currentSvg = "";
+
+      async function render() {
+        // 1. Initialize Plotter Studio
+        const plotter = await createPlotter({
+          paper: PaperSize.A4_PORTRAIT,
+          resolution: 1280,
+        });
+
+        // 2. Set up 3D scene with camera centered on the composition
+        const scene = plotter.createScene3D({
+          position: [0, 1.5, 25],
+          target: [0, 0.5, 0],
+          fovDeg: 34,
+        });
+
+        scene.registerLayer({
+          id: "outlines",
+          name: "01-Outlines",
+          color: "#111827",
+          strokeWidthMm: 0.35,
+        });
+        scene.registerLayer({
+          id: "sine-waves",
+          name: "02-Custom-Sine-Wave",
+          color: "#0284c7",
+          strokeWidthMm: 0.22,
+        });
+
+        // Key light direction from upper-left & slightly in front
+        const lightDir = [-0.65, 0.85, 0.6];
+        const lenL = Math.hypot(...lightDir);
+        const lNorm = lightDir.map((v) => v / lenL);
+
+        // 3. User-defined custom sine wave hatching routine with lighting modulation
+        const sineWaveHatch = HatchFill.custom(
+          (ctx) => {
+            const n = ctx.worldNormal;
+            // Half-Lambert lighting factor [0..1]
+            const ndotl = Math.max(
+              0,
+              Math.min(1, (n[0] * lNorm[0] + n[1] * lNorm[1] + n[2] * lNorm[2]) * 0.5 + 0.5)
+            );
+
+            // Highlight cutoff: bright sunlit side has no hatch, leaving clean white paper
+            if (ndotl > 0.72) return [];
+
+            // Shadows are denser (spacing 1.1mm) than midtones (spacing 2.2mm)
+            const spacingMm = ndotl < 0.42 ? 1.1 : 2.2;
+            const spacingPx = spacingMm * ctx.pxPerMm;
+            const amplitudePx = 0.52 * ctx.pxPerMm;
+            const wavelengthPx = 4.2 * ctx.pxPerMm;
+
+            // Get parallel chords across the face polygon at 30 degrees
+            const chords = getPolygonScanlineChords(
+              ctx.screenPoly,
+              spacingPx,
+              (30 * Math.PI) / 180
+            );
+
+            const resultPolylines = [];
+
+            for (const chord of chords) {
+              const dx = chord.x1 - chord.x0;
+              const dy = chord.y1 - chord.y0;
+              const len = Math.hypot(dx, dy);
+              if (len < 0.8) continue;
+
+              // Unit normal vector perpendicular to chord
+              const nx = -dy / len;
+              const ny = dx / len;
+
+              const steps = Math.ceil(len / 1.5);
+              const wavePoints = [];
+
+              for (let s = 0; s <= steps; s++) {
+                const t = s / steps;
+                const xBase = chord.x0 + dx * t;
+                const yBase = chord.y0 + dy * t;
+
+                // Screen-space global phase anchor so waves flow seamlessly across facets
+                const phase = ((xBase * 0.86 + yBase * 0.5) / wavelengthPx) * Math.PI * 2;
+                const offset = Math.sin(phase) * amplitudePx;
+
+                const waveX = xBase + nx * offset;
+                const waveY = yBase + ny * offset;
+
+                wavePoints.push({
+                  xPx: waveX,
+                  yPx: waveY,
+                  // Exact perspective-correct camera depth for WebGPU 3D occlusion
+                  z: ctx.interpolateZ(waveX, waveY),
+                });
+              }
+
+              // Clip displaced wave points strictly to polygon boundary
+              resultPolylines.push(...ctx.clipPolyline(wavePoints));
+            }
+
+            return resultPolylines;
+          },
+          { layer: "sine-waves" }
+        );
+
+        // 4. Background sphere on the left
+        scene.addSphere({
+          position: [-1.4, 1.4, -0.8],
+          radius: 2.7,
+          latSegments: 36,
+          lonSegments: 48,
+          stroke: { layer: "outlines" },
+          fill: sineWaveHatch,
+        });
+
+        // 5. Foreground sphere on the right overlapping and occluding the first sphere
+        scene.addSphere({
+          position: [1.4, -0.2, 1.8],
+          radius: 2.2,
+          latSegments: 36,
+          lonSegments: 48,
+          stroke: { layer: "outlines" },
+          fill: sineWaveHatch,
+        });
+
+        // 6. Compute hidden line removal on the GPU & optimize pen travel
+        const result = await plotter.plot(scene, { optimizeTravel: true });
+
+        // 7. Render SVG directly to the page
+        currentSvg = result.toSVG({ includePaperBorder: true });
+        container.innerHTML = currentSvg;
+        statusEl.textContent = `${result.stats.totalTimeMs.toFixed(1)} ms · ${result.stats.finalPolylineCount} paths · -${result.stats.travelSavingsPercent.toFixed(1)}% travel`;
+      }
+
+      downloadBtn.addEventListener("click", () => {
+        if (!currentSvg) return;
+        const blob = new Blob([currentSvg], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "hello-world-custom-hatch.svg";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      render();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plotter Studio — 2D Hello World</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f7f6f3;
+        color: #222;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #666;
+        font-size: 14px;
+      }
+      #plot-container {
+        width: 100%;
+        max-width: 440px;
+        background: #fff;
+        border-radius: 4px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+      }
+      #plot-container svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .actions {
+        margin-top: 16px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      button {
+        background: #111;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #333;
+      }
+      .nav-links {
+        margin-top: 20px;
+        font-size: 13px;
+        color: #888;
+      }
+      .nav-links a {
+        color: #0969da;
+        text-decoration: none;
+        margin: 0 6px;
+      }
+      .nav-links a:hover {
+        text-decoration: underline;
+      }
+      #status {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>2D Hello World</h1>
+    <p>GPU-accelerated hidden line removal with 2D painter's order &amp; erase masks.</p>
+
+    <div id="plot-container"></div>
+
+    <div class="actions">
+      <button id="download-btn">Download SVG</button>
+      <span id="status">Rendering...</span>
+    </div>
+
+    <div class="nav-links">
+      <a href="./hello-world-3d.html">3D Example</a>
+      <span>·</span>
+      <a href="./hello-world-custom-hatch.html">Custom Hatch</a>
+      <span>·</span>
+      <a href="../index.html">Studio Playground</a>
+    </div>
+
+    <script type="module">
+      import { createPlotter, PaperSize, HatchFill } from "../src/lib/index.ts";
+
+      const container = document.getElementById("plot-container");
+      const downloadBtn = document.getElementById("download-btn");
+      const statusEl = document.getElementById("status");
+
+      let currentSvg = "";
+
+      async function run() {
+        // 1. Initialize plotter for A4 paper
+        const plotter = await createPlotter({
+          paper: PaperSize.A4_PORTRAIT,
+          penWidthMm: 0.25,
+        });
+
+        // 2. Build 2D scene in physical millimetric coordinates
+        const scene = plotter.createScene2D();
+        scene.registerLayer({ id: "black", color: "#111111", strokeWidthMm: 0.3 });
+        scene.registerLayer({ id: "blue", color: "#1d4ed8", strokeWidthMm: 0.2 });
+        scene.registerLayer({ id: "orange", color: "#c2410c", strokeWidthMm: 0.2 });
+
+        // Background horizontal line grid (zIndex = 1)
+        for (let y = 50; y <= 240; y += 12) {
+          scene.addPolyline({
+            points: [[30, y], [180, y]],
+            zIndex: 1,
+            layer: "blue",
+          });
+        }
+
+        // Foreground circle with cross-hatch fill (zIndex = 5, occludes background lines)
+        scene.addCircle({
+          cx: 105,
+          cy: 140,
+          radius: 42,
+          zIndex: 5,
+          mode: "normal",
+          stroke: { layer: "black" },
+          fill: HatchFill.crossHatch({
+            layer: "orange",
+            angleDeg: 45,
+            spacingMm: 1.5,
+          }),
+        });
+
+        // Window cutout that erases through the circle (zIndex = 10)
+        scene.addRect({
+          x: 90,
+          y: 125,
+          width: 30,
+          height: 30,
+          zIndex: 10,
+          mode: "erase",
+        });
+
+        // Frame border around the page
+        scene.addRect({
+          x: 20,
+          y: 20,
+          width: 170,
+          height: 257,
+          zIndex: 15,
+          mode: "transparent",
+          stroke: { layer: "black" },
+        });
+
+        // 3. Compute hidden line removal on the GPU & optimize pen travel
+        const result = await plotter.plot(scene, { optimizeTravel: true });
+
+        // 4. Render output SVG directly to the page
+        currentSvg = result.toSVG({ includePaperBorder: true });
+        container.innerHTML = currentSvg;
+        statusEl.textContent = `${result.stats.totalTimeMs.toFixed(1)} ms · ${result.stats.finalPolylineCount} paths · -${result.stats.travelSavingsPercent.toFixed(1)}% travel`;
+      }
+
+      downloadBtn.addEventListener("click", () => {
+        if (!currentSvg) return;
+        const blob = new Blob([currentSvg], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "hello-world-2d.svg";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      run().catch((err) => {
+        statusEl.textContent = `Error: ${err.message}`;
+        console.error(err);
+      });
+    </script>
+  </body>
+</html>

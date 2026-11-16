@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plotter Studio — WebGPU Hidden Line Removal &amp; Hatching</title>
+    <link rel="stylesheet" href="./src/playground/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <aside class="sidebar">
+        <header class="brand">
+          <h1>Plotter Studio</h1>
+          <nav class="brand-nav">
+            <span>Examples:</span>
+            <a href="./examples/hello-world-2d.html">2D</a>
+            <span>·</span>
+            <a href="./examples/hello-world-3d.html">3D</a>
+            <span>·</span>
+            <a href="./examples/hello-world-custom-hatch.html">Hatch</a>
+          </nav>
+        </header>
+
+        <!-- Top Pinned Controls: Scene Preset, Custom GLB Upload & View Mode -->
+        <section class="control-group">
+          <div class="group-header-row">
+            <span class="group-title">Scene Preset</span>
+            <label class="btn-mini file-upload-label" title="Load a custom .glb 3D model from disk">
+              + Load .GLB
+              <input type="file" id="glb-file-input" accept=".glb" hidden />
+            </label>
+          </div>
+          <div class="scene-radio-list" id="scene-radio-list">
+            <label class="scene-radio-option">
+              <input type="radio" name="scene-preset" value="alpine-mountains" checked />
+              <span class="scene-radio-label">Alpine Mountain Range (2D)</span>
+            </label>
+            <label class="scene-radio-option">
+              <input type="radio" name="scene-preset" value="random-squares" />
+              <span class="scene-radio-label">1,000 Random Squares (2D Stress Test)</span>
+            </label>
+            <label class="scene-radio-option">
+              <input type="radio" name="scene-preset" value="three-demo" />
+              <span class="scene-radio-label">Three.js Scene Adapter (3D)</span>
+            </label>
+            <label class="scene-radio-option">
+              <input type="radio" name="scene-preset" value="skull-glb" />
+              <span class="scene-radio-label">Anatomical Skull (skull.glb 3D)</span>
+            </label>
+            <label class="scene-radio-option hidden" id="custom-glb-radio-row">
+              <input type="radio" name="scene-preset" value="custom-glb" />
+              <span class="scene-radio-label" id="custom-glb-radio-label">Custom GLB</span>
+            </label>
+          </div>
+
+          <div class="segmented" id="view-mode">
+            <button type="button" data-view="split" class="active">Split View</button>
+            <button type="button" data-view="gbuffer" title="G-Buffer 3D rasterization and surface depth preview">G-Buffer Preview</button>
+            <button type="button" data-view="svg">SVG Plot</button>
+          </div>
+        </section>
+
+        <!-- 1. Collapsible Section: Camera & Viewport -->
+        <details class="collapsible-group" id="camera-controls" open>
+          <summary class="collapsible-summary">
+            <span>1. Camera (L-Orbit · R-Pan · Zoom)</span>
+            <button type="button" id="btn-reset-cam" class="btn-mini">Reset</button>
+          </summary>
+          <div class="collapsible-body">
+            <div class="slider-row">
+              <span>Azimuth</span>
+              <input type="range" id="cam-azimuth" min="-180" max="180" step="1" value="34" />
+              <output id="cam-azimuth-val">34°</output>
+            </div>
+            <div class="slider-row">
+              <span>Elevation</span>
+              <input type="range" id="cam-elevation" min="-60" max="75" step="1" value="26" />
+              <output id="cam-elevation-val">26°</output>
+            </div>
+            <div class="slider-row">
+              <span>Distance</span>
+              <input type="range" id="cam-distance" min="4" max="45" step="0.5" value="22.5" />
+              <output id="cam-distance-val">22.5</output>
+            </div>
+          </div>
+        </details>
+
+        <!-- 2. Collapsible Section: Edge Detection & Geometry LOD -->
+        <details class="collapsible-group" open>
+          <summary class="collapsible-summary">
+            <span>2. Edges &amp; Geometry LOD</span>
+          </summary>
+          <div class="collapsible-body">
+            <div class="slider-row">
+              <span>Mesh LOD</span>
+              <input type="range" id="mesh-lod" min="20" max="100" step="5" value="100" />
+              <output id="mesh-lod-val">100%</output>
+            </div>
+            <div class="slider-row">
+              <span>Crease Angle</span>
+              <input type="range" id="crease-angle" min="0" max="90" step="1" value="22" />
+              <output id="crease-angle-val">22°</output>
+            </div>
+            <div class="checkbox-grid">
+              <label class="checkbox-row">
+                <input type="checkbox" id="edge-silhouettes" checked />
+                <span>Silhouettes</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" id="edge-outlines" checked />
+                <span>Creases / Outlines</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" id="edge-wireframe" />
+                <span>Full Wireframe</span>
+              </label>
+            </div>
+          </div>
+        </details>
+
+        <!-- 3. Collapsible Section: Hatching & Lighting -->
+        <details class="collapsible-group" open>
+          <summary class="collapsible-summary">
+            <span>3. Hatching &amp; Lighting</span>
+          </summary>
+          <div class="collapsible-body">
+            <div class="slider-row">
+              <span>Hatch Style</span>
+              <select id="hatch-mode" class="span-2">
+                <option value="default">Scene Default</option>
+                <option value="parallel">Parallel Engraving</option>
+                <option value="cross-hatch">Cross-Hatch</option>
+                <option value="none">None (Outlines Only)</option>
+              </select>
+            </div>
+            <div class="slider-row">
+              <span>Density</span>
+              <input type="range" id="hatch-density" min="0.3" max="2.5" step="0.1" value="1.0" />
+              <output id="hatch-density-val">1.0×</output>
+            </div>
+            <div class="slider-row">
+              <span>Angle Offset</span>
+              <input type="range" id="hatch-angle" min="-90" max="90" step="5" value="0" />
+              <output id="hatch-angle-val">0°</output>
+            </div>
+            <div class="slider-row" title="Surface brightness threshold above which hatch lines are suppressed to preserve bare paper highlights">
+              <span>Highlight Cutoff</span>
+              <input type="range" id="highlight-cutoff" min="0.15" max="1.0" step="0.02" value="0.78" />
+              <output id="highlight-cutoff-val">0.78</output>
+            </div>
+            <div class="slider-row" title="Shadow darkness threshold below which secondary cross-hatching is added for deep shading">
+              <span>Cross-Shadow</span>
+              <input type="range" id="cross-threshold" min="0.10" max="0.90" step="0.02" value="0.48" />
+              <output id="cross-threshold-val">0.48</output>
+            </div>
+            <div class="slider-row">
+              <span>Light Azim</span>
+              <input type="range" id="light-azimuth" min="-180" max="180" step="5" value="35" />
+              <output id="light-azimuth-val">35°</output>
+            </div>
+            <div class="slider-row">
+              <span>Light Elev</span>
+              <input type="range" id="light-elevation" min="-45" max="90" step="5" value="48" />
+              <output id="light-elevation-val">48°</output>
+            </div>
+          </div>
+        </details>
+
+        <!-- 4. Collapsible Section: Pen, Paper & Layers -->
+        <details class="collapsible-group" open>
+          <summary class="collapsible-summary">
+            <span>4. Pen, Paper &amp; Layers</span>
+          </summary>
+          <div class="collapsible-body">
+            <div class="slider-row">
+              <span>Paper Size</span>
+              <select id="paper-size" class="span-2">
+                <option value="AUTO_PANEL">Auto Fit Panel (Full Space)</option>
+                <option value="A4_PORTRAIT" selected>A4 Portrait (210 × 297 mm)</option>
+                <option value="A4_LANDSCAPE">A4 Landscape (297 × 210 mm)</option>
+                <option value="A3_PORTRAIT">A3 Portrait (297 × 420 mm)</option>
+                <option value="A3_LANDSCAPE">A3 Landscape (420 × 297 mm)</option>
+                <option value="SQUARE_200">Square (200 × 200 mm)</option>
+                <option value="LETTER_PORTRAIT">US Letter (215.9 × 279.4 mm)</option>
+              </select>
+            </div>
+            <div class="slider-row">
+              <span>Pen Nib</span>
+              <input type="range" id="pen-width" min="0.10" max="2.00" step="0.05" value="0.20" />
+              <output id="pen-width-val">0.20mm</output>
+            </div>
+            <div class="slider-row">
+              <span>G-Buffer Res</span>
+              <select id="gbuffer-res" class="span-2">
+                <option value="1024">1024 px (Fast)</option>
+                <option value="2048" selected>2048 px (Standard)</option>
+                <option value="3072">3072 px (Ultra Fine)</option>
+              </select>
+            </div>
+            <div class="layer-list-title">Active Pen Layers</div>
+            <div id="layer-toggles" class="layer-toggles"></div>
+          </div>
+        </details>
+
+        <!-- 5. Collapsible Section: Path Optimization & Guides -->
+        <details class="collapsible-group" open>
+          <summary class="collapsible-summary">
+            <span>5. Path Optimization &amp; Guides</span>
+          </summary>
+          <div class="collapsible-body">
+            <div class="slider-row">
+              <span>Hatch Meander</span>
+              <input type="range" id="hatch-join-dist" min="0" max="3.0" step="0.1" value="0" />
+              <output id="hatch-join-dist-val">Off</output>
+            </div>
+            <div class="slider-row">
+              <span>Simplify RDP</span>
+              <input type="range" id="simplify-tol" min="0" max="1.0" step="0.05" value="0.02" />
+              <output id="simplify-tol-val">0.02mm</output>
+            </div>
+            <label class="checkbox-row">
+              <input type="checkbox" id="opt-travel" checked />
+              <span>Optimize Pen Travel (2-Opt TSP)</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="show-travel" />
+              <span>Show Pen-Up Travel Lines (Red)</span>
+            </label>
+            <label class="checkbox-row">
+              <input type="checkbox" id="show-border" checked />
+              <span>Show Paper Margin Guide</span>
+            </label>
+          </div>
+        </details>
+
+        <section class="telemetry" id="telemetry-panel">
+          <div class="stat-grid">
+            <div class="stat-card">
+              <span class="stat-label">GPU Compute</span>
+              <strong id="stat-gpu">-- ms</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Total Time</span>
+              <strong id="stat-total">-- ms</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Visible Paths</span>
+              <strong id="stat-paths">--</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Travel Saved</span>
+              <strong id="stat-savings">--%</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Draw Length</span>
+              <strong id="stat-draw">-- m</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Air Travel</span>
+              <strong id="stat-travel">-- m</strong>
+            </div>
+          </div>
+        </section>
+
+        <footer class="actions">
+          <button type="button" id="btn-download-svg" class="btn-primary">
+            Download SVG
+          </button>
+        </footer>
+      </aside>
+
+      <main class="workspace" id="workspace">
+        <div class="drop-overlay hidden" id="drop-overlay">
+          <div class="drop-box">Drop 3D <code>.glb</code> model to load into Plotter Studio</div>
+        </div>
+
+        <!-- Floating Viewport Zoom & Display Bar -->
+        <div class="viewport-toolbar" id="viewport-toolbar">
+          <span class="toolbar-label">Display</span>
+          <button type="button" class="zoom-preset-btn active" data-zoom-mode="fit" title="Fit entire paper sheet into available panel">
+            Fit
+          </button>
+          <button type="button" class="zoom-preset-btn" data-zoom-mode="fill" title="Expand paper to fill 100% of panel width &amp; height">
+            Fill Space
+          </button>
+          <button type="button" class="zoom-preset-btn" data-zoom-mode="1:1" title="1:1 physical paper scale (100% actual print size)">
+            1:1 Actual
+          </button>
+          <button type="button" class="zoom-preset-btn" data-zoom-mode="2x" title="200% zoom for fine hatch &amp; stroke inspection">
+            200%
+          </button>
+          <div class="toolbar-divider"></div>
+          <button type="button" class="zoom-step-btn" id="btn-zoom-out" title="Zoom out (Ctrl + Scroll)">−</button>
+          <span class="zoom-readout" id="zoom-readout">100%</span>
+          <button type="button" class="zoom-step-btn" id="btn-zoom-in" title="Zoom in (Ctrl + Scroll)">+</button>
+        </div>
+
+        <div class="stage-container" id="stage-container">
+          <div class="panel-viewport" id="gbuffer-viewport">
+            <div class="panel-scroll" id="gbuffer-scroll">
+              <div class="paper-card" id="gbuffer-card">
+                <canvas id="gbuffer-canvas" class="gbuffer-canvas"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-viewport" id="svg-viewport">
+            <div class="panel-scroll" id="svg-scroll">
+              <div class="paper-card" id="svg-card">
+                <div id="svg-mount" class="svg-mount"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script type="module" src="./src/playground/main.ts"></script>
+  </body>
+</html>

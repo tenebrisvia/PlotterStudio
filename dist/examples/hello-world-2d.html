@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plotter Studio — 2D Hello World</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        margin: 0;
+        padding: 24px;
+        background: #f7f6f3;
+        color: #222;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 20px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0 0 16px;
+        color: #666;
+        font-size: 14px;
+      }
+      #plot-container {
+        width: 100%;
+        max-width: 440px;
+        background: #fff;
+        border-radius: 4px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+      }
+      #plot-container svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .actions {
+        margin-top: 16px;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      button {
+        background: #111;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #333;
+      }
+      .nav-links {
+        margin-top: 20px;
+        font-size: 13px;
+        color: #888;
+      }
+      .nav-links a {
+        color: #0969da;
+        text-decoration: none;
+        margin: 0 6px;
+      }
+      .nav-links a:hover {
+        text-decoration: underline;
+      }
+      #status {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #888;
+      }
+    </style>
+    <script type="module" crossorigin src="../assets/hello-world-2d-rFw23iym.js"></script>
+    <link rel="modulepreload" crossorigin href="../assets/plotter-DrBZ4aLJ.js">
+  </head>
+  <body>
+    <h1>2D Hello World</h1>
+    <p>GPU-accelerated hidden line removal with 2D painter's order &amp; erase masks.</p>
+
+    <div id="plot-container"></div>
+
+    <div class="actions">
+      <button id="download-btn">Download SVG</button>
+      <span id="status">Rendering...</span>
+    </div>
+
+    <div class="nav-links">
+      <a href="./hello-world-3d.html">3D Example</a>
+      <span>·</span>
+      <a href="./hello-world-custom-hatch.html">Custom Hatch</a>
+      <span>·</span>
+      <a href="../index.html">Studio Playground</a>
+    </div>
+
+  </body>
+</html>
